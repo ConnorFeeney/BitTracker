@@ -6,15 +6,22 @@ export const habitColors = {
   pink: "#f778ba",
 } as const;
 export type HabitColor = keyof typeof habitColors;
+export const allWeekdays = [0, 1, 2, 3, 4, 5, 6];
+export const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** An empty selection means the habit is tracked every day. */
+export function trackedWeekdays(weekdays?: number[]): number[] {
+  return weekdays?.length ? weekdays : allWeekdays;
+}
 export interface Habit {
   id: string;
   name: string;
   description: string;
   color: HabitColor;
+  weekdays: number[];
   createdAt: string;
   completions: string[];
 }
-export type HabitInput = Pick<Habit, "name" | "description" | "color">;
+export type HabitInput = Pick<Habit, "name" | "description" | "color" | "weekdays">;
 /** UI-facing asynchronous boundary. A future HTTP adapter implements this contract. */
 export interface HabitRepository {
   list(): Promise<Habit[]>;

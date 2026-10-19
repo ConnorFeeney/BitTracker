@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader, BitMark } from "@/components/app-header";
-import { ItemActions } from "@/components/item-actions";
 import {
   Activity,
   CalendarDays,
@@ -13,6 +12,8 @@ import {
   Flame,
   Leaf,
   LoaderCircle,
+  MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -52,6 +53,8 @@ import {
 import {
   habitColors,
   habitRepository,
+  trackedWeekdays,
+  weekdayLabels,
   type Habit,
   type HabitInput,
 } from "@/lib/habits";
@@ -178,21 +181,36 @@ export function Dashboard() {
       setPending(null);
     }
   }
-  const completed = habits.filter((habit) =>
+  const dueToday = habits.filter((habit) =>
+    trackedWeekdays(habit.weekdays).includes(today ? parseDate(today).getDay() : -1),
+  );
+  const completed = dueToday.filter((habit) =>
     habit.completions.includes(today),
   ).length;
   const allDays = habits.flatMap((habit) => habit.completions);
   const counts = completionCounts(allDays);
+  const scheduledCounts: Record<string, number> = {};
+  if (year !== null) {
+    let cursor = new Date(year, 0, 1, 12);
+    while (cursor.getFullYear() === year && dateKey(cursor) <= today) {
+      const day = dateKey(cursor);
+      scheduledCounts[day] = habits.filter((habit) =>
+        dateKey(new Date(habit.createdAt)) <= day &&
+        trackedWeekdays(habit.weekdays).includes(cursor.getDay()),
+      ).length;
+      cursor = moveDate(cursor, 1);
+    }
+  }
   const yearDays = allDays.filter((day) => day.startsWith(String(year)));
   const bestStreak =
     habits.length && today
       ? Math.max(
-          ...habits.map((habit) => currentStreak(habit.completions, today)),
+          ...habits.map((habit) => currentStreak(habit.completions, today, habit.weekdays)),
         )
       : 0;
   const bestEver = Math.max(
     0,
-    ...habits.map((habit) => longestStreak(habit.completions)),
+    ...habits.map((habit) => longestStreak(habit.completions, habit.weekdays)),
   );
   const weekStart = today ? dateKey(moveDate(parseDate(today), -6)) : "";
   const weekTotal = allDays.filter(
@@ -206,7 +224,7 @@ export function Dashboard() {
       (filter === "all" ||
         (filter === "completed"
           ? habit.completions.includes(today)
-          : !habit.completions.includes(today))),
+          : dueToday.includes(habit) && !habit.completions.includes(today))),
   );
   const currentYear = today ? Number(today.slice(0, 4)) : 0;
   const firstYear = Math.min(
@@ -288,11 +306,11 @@ export function Dashboard() {
             icon={<CheckCheck />}
             label="Completed today"
             value={`${completed}`}
-            suffix={`/ ${habits.length}`}
+            suffix={`/ ${dueToday.length}`}
             note={
-              habits.length > 0 && completed === habits.length
+              dueToday.length > 0 && completed === dueToday.length
                 ? "All habits completed"
-                : "Daily check-ins"
+                : dueToday.length === 0 ? "No habits scheduled today" : "Scheduled check-ins"
             }
             green={completed > 0}
           />
@@ -364,6 +382,7 @@ export function Dashboard() {
               {year && today ? (
                 <ContributionGraph
                   counts={counts}
+                  scheduledCounts={scheduledCounts}
                   year={year}
                   today={today}
                   label="All habit contributions"
@@ -468,6 +487,7 @@ export function Dashboard() {
                               name,
                               description: "",
                               color: "green",
+                              weekdays: [],
                               createdAt: "",
                               completions: [],
                             },
@@ -503,44 +523,57 @@ export function Dashboard() {
               <div className="space-y-4">
                 {visible.map((habit) => {
                   const done = habit.completions.includes(today),
+                    due = trackedWeekdays(habit.weekdays).includes(parseDate(today).getDay()),
                     color = habitColors[habit.color],
-                    streak = currentStreak(habit.completions, today);
+                    streak = currentStreak(habit.completions, today, habit.weekdays);
                   return (
                     <Card
                       key={habit.id}
                       className="habit-card gap-0 overflow-hidden rounded-lg border-border bg-background py-0 shadow-none"
                     >
-                      <ItemActions
-                        label={habit.name}
-                        onEdit={() => setForm({ habit })}
-                        onDelete={() => setDeleting(habit)}
-                        disabled={!!pending}
-                      >
-                        <div className="p-4 pb-2">
-                          <div className="flex min-w-0 items-start gap-3">
-                            <span
-                              className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10"
-                              style={{
-                                background: `color-mix(in srgb, ${color} 9%, transparent)`,
-                                color,
-                              }}
-                            >
-                              <Leaf className="size-4" />
-                            </span>
-                            <div className="min-w-0">
-                              <h3 className="truncate text-sm font-semibold">
-                                {habit.name}
-                              </h3>
-                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                                {habit.description || "Daily"}
-                              </p>
-                            </div>
-                          </div>
+                      <div className="flex items-start gap-3 p-4 pb-2">
+                        <span
+                          className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10"
+                          style={{
+                            background: `color-mix(in srgb, ${color} 9%, transparent)`,
+                            color,
+                          }}
+                        >
+                          <Leaf className="size-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-sm font-semibold">
+                            {habit.name}
+                          </h3>
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            {habit.description || (trackedWeekdays(habit.weekdays).length === 7
+                              ? "Every day"
+                              : habit.weekdays.map((day) => weekdayLabels[day]).join(", "))}
+                          </p>
                         </div>
-                      </ItemActions>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button variant="ghost" size="icon-sm" disabled={!!pending} />}
+                            aria-label={`Actions for ${habit.name}`}
+                          >
+                            <MoreHorizontal />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setForm({ habit })}>
+                              <Pencil />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem variant="destructive" onClick={() => setDeleting(habit)}>
+                              <Trash2 />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                       <div className="px-3 pb-2 pt-3 md:px-4">
                         <ContributionGraph
                           counts={completionCounts(habit.completions)}
+                          weekdays={habit.weekdays}
                           year={year!}
                           today={today}
                           color={color}
@@ -575,9 +608,9 @@ export function Dashboard() {
                         <Button
                           variant={done ? "outline" : "default"}
                           size="sm"
-                          disabled={!!pending}
+                          disabled={!!pending || !due}
                           aria-pressed={done}
-                          aria-label={`${done ? "Undo" : "Complete"} ${habit.name} for today`}
+                          aria-label={due ? `${done ? "Undo" : "Complete"} ${habit.name} for today` : `${habit.name} is not scheduled today`}
                           onClick={() => void toggle(habit, today)}
                           className={
                             done
@@ -592,7 +625,7 @@ export function Dashboard() {
                           ) : (
                             <Check />
                           )}
-                          {done ? "Completed today" : "Check in"}
+                          {due ? (done ? "Completed today" : "Check in") : "Rest day"}
                         </Button>
                       </div>
                     </Card>
@@ -624,7 +657,7 @@ export function Dashboard() {
                     {completed}
                     <span className="text-base font-normal text-muted-foreground">
                       {" "}
-                      / {habits.length}
+                      / {dueToday.length}
                     </span>
                   </span>
                   <span className="text-xs text-muted-foreground">
@@ -635,13 +668,13 @@ export function Dashboard() {
                   <div
                     className="h-full rounded-full bg-[#39d353] transition-[width] duration-500"
                     style={{
-                      width: `${habits.length ? (completed / habits.length) * 100 : 0}%`,
+                      width: `${dueToday.length ? (completed / dueToday.length) * 100 : 0}%`,
                     }}
                   />
                 </div>
-                {habits.length ? (
+                {dueToday.length ? (
                   <ul className="space-y-1">
-                    {habits.map((habit) => (
+                    {dueToday.map((habit) => (
                       <li key={habit.id}>
                         <button
                           onClick={() => void toggle(habit, today)}
@@ -666,7 +699,7 @@ export function Dashboard() {
                   </ul>
                 ) : (
                   <p className="text-xs leading-5 text-muted-foreground">
-                    No habits yet.
+                    No habits scheduled today.
                   </p>
                 )}
               </div>
