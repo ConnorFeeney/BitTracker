@@ -1,4 +1,5 @@
 import { isDateKey } from "@/lib/dates";
+import { createId } from "@/lib/id";
 import { storageTransaction } from "@/lib/storage";
 import type { Todo, TodoInput, TodoRepository } from "./types";
 export type { Todo, TodoInput, TodoRepository } from "./types";
@@ -37,7 +38,7 @@ const indexedDbTodoRepository: TodoRepository = {
     const now = new Date().toISOString();
     const todo: Todo = {
       ...validate(input),
-      id: crypto.randomUUID(),
+      id: createId(),
       createdAt: now,
       updatedAt: now,
     };

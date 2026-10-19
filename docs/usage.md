@@ -2,12 +2,12 @@
 
 ## Habits
 
-- Select **New habit**, enter a name, and choose a color.
+- Select **New habit**, enter a name, choose the weekdays to track, and choose a color. No days are selected by default; leaving them all unselected tracks the habit every day.
 - **Check in** marks today complete; select it again to undo.
-- Click a past graph day to change its check-in. Mobile graphs scroll and center on today.
+- Click a scheduled past graph day to change its check-in. Mobile graphs scroll and center on today.
 - Search by name or description, or filter by today's completion status.
 
-Current and longest streaks show the best individual habit streak. Weekly check-ins combine all habits over the last seven days. Graph colors scale against the busiest day in the displayed year.
+Current and longest streaks count consecutive scheduled check-ins for each habit. Weekly check-ins combine all habits over the last seven days. The main graph's color shows the share of scheduled habits completed on each day; an individual habit's graph shows whether it was completed. Changing a schedule keeps previous check-ins.
 
 ## To-dos
 
@@ -19,7 +19,7 @@ Current and longest streaks show the best individual habit streak. Weekly check-
 
 ## Edit and delete
 
-Use the three-dot button on desktop to edit or delete. On mobile, swipe left on the item's text. Deleting a habit also removes its history.
+Use a habit's three-dot button to edit or delete it on any device. To-dos also support swiping left on mobile. Deleting a habit also removes its history.
 
 ## Reset data
 
