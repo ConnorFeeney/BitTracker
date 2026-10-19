@@ -5,6 +5,8 @@ import { dateKey, moveDate } from "@/lib/dates";
 
 interface Props {
   counts: Record<string, number>;
+  scheduledCounts?: Record<string, number>;
+  weekdays?: number[];
   year: number;
   today: string;
   color?: string;
@@ -15,6 +17,8 @@ interface Props {
 
 export function ContributionGraph({
   counts,
+  scheduledCounts,
+  weekdays,
   year,
   today,
   color = "#39d353",
@@ -57,12 +61,6 @@ export function ContributionGraph({
   const weeks = Math.ceil(
     (Math.round((last.getTime() - start.getTime()) / 86400000) + 1) / 7,
   );
-  const max = Math.max(
-    1,
-    ...Object.entries(counts)
-      .filter(([day]) => day.startsWith(`${year}-`))
-      .map(([, count]) => count),
-  );
   const months = Array.from({ length: 12 }, (_, month) => {
     const date = new Date(year, month, 1, 12);
     return {
@@ -73,14 +71,31 @@ export function ContributionGraph({
         ) + 1,
     };
   });
+  let focusDay = "";
+  if (onSelect) {
+    let cursor = new Date(year, 11, 31, 12);
+    while (dateKey(cursor) > today) cursor = moveDate(cursor, -1);
+    while (cursor.getFullYear() === year) {
+      const key = dateKey(cursor);
+      if (!weekdays?.length || weekdays.includes(cursor.getDay()) || (counts[key] ?? 0) > 0) {
+        focusDay = key;
+        break;
+      }
+      cursor = moveDate(cursor, -1);
+    }
+  }
   const cells = Array.from({ length: weeks * 7 }, (_, index) => {
     const date = moveDate(start, index),
       key = dateKey(date);
     const outside = date.getFullYear() !== year,
       future = key > today;
     const count = counts[key] ?? 0;
-    const level = count === 0 ? 0 : Math.max(1, Math.ceil((count / max) * 4));
-    const title = `${date.toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })}: ${count} completion${count === 1 ? "" : "s"}${onSelect && !future ? " · Click to toggle" : ""}`;
+    const scheduled = scheduledCounts?.[key] ?? 0;
+    const available = !weekdays?.length || weekdays.includes(date.getDay()) || count > 0;
+    const level = count === 0 ? 0 : scheduledCounts
+      ? Math.max(1, Math.min(4, Math.ceil((count / Math.max(scheduled, count)) * 4)))
+      : 4;
+    const title = `${date.toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })}: ${count} completion${count === 1 ? "" : "s"}${scheduledCounts ? `, ${scheduled} habit${scheduled === 1 ? "" : "s"} scheduled` : ""}${weekdays && !available ? " · Not scheduled" : onSelect && !future ? " · Click to toggle" : ""}`;
     const style = {
       backgroundColor: count
         ? `color-mix(in srgb, ${color} ${[0, 24, 46, 72, 100][level]}%, #0d1117)`
@@ -92,20 +107,14 @@ export function ContributionGraph({
         type="button"
         className="contribution-cell"
         style={style}
-        disabled={outside || future || disabled}
+        disabled={outside || future || !available || disabled}
         data-outside={outside}
         data-future={future}
         data-today={key === today}
         title={outside ? undefined : title}
         aria-label={title}
         aria-pressed={count > 0}
-        tabIndex={
-          outside || future
-            ? -1
-            : key === (today.startsWith(String(year)) ? today : `${year}-12-31`)
-              ? 0
-              : -1
-        }
+        tabIndex={key === focusDay && !outside && !future && available ? 0 : -1}
         onClick={() => onSelect(key)}
         onKeyDown={(event) => {
           const step = {
@@ -116,10 +125,10 @@ export function ContributionGraph({
           }[event.key];
           if (!step) return;
           event.preventDefault();
-          const next =
-            gridRef.current?.querySelectorAll<HTMLButtonElement>("button")[
-              index + step
-            ];
+          const buttons = gridRef.current?.querySelectorAll<HTMLButtonElement>("button");
+          let nextIndex = index + step;
+          while (buttons?.[nextIndex]?.disabled) nextIndex += step;
+          const next = buttons?.[nextIndex];
           if (next && !next.disabled) {
             event.currentTarget.tabIndex = -1;
             next.tabIndex = 0;

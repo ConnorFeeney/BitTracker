@@ -4,7 +4,7 @@ A habit tracker and to-do list built with Next.js, React, Tailwind CSS, and shad
 
 - Habit contribution graphs, daily check-ins, and streaks.
 - To-dos with due dates, overdue groups, tags, and search.
-- Mobile swipe actions and reduced-motion support.
+- Mobile to-do swipe actions and reduced-motion support.
 
 ## Run locally
 

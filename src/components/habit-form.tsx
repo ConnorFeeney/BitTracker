@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   habitColors,
+  weekdayLabels,
   type Habit,
   type HabitColor,
   type HabitInput,
@@ -31,6 +32,7 @@ export function HabitForm({
   const [name, setName] = useState(habit?.name ?? "");
   const [description, setDescription] = useState(habit?.description ?? "");
   const [color, setColor] = useState<HabitColor>(habit?.color ?? "green");
+  const [weekdays, setWeekdays] = useState<number[]>(habit?.weekdays ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -38,7 +40,7 @@ export function HabitForm({
     setSaving(true);
     setError("");
     try {
-      await onSave({ name, description, color }, habit?.id);
+      await onSave({ name, description, color, weekdays }, habit?.id);
       onClose();
     } catch (error) {
       setError(
@@ -99,6 +101,38 @@ export function HabitForm({
               className="resize-none"
             />
           </div>
+          <fieldset disabled={saving}>
+            <legend className="mb-2 text-sm font-medium">Track on</legend>
+            <div
+              className="flex flex-wrap gap-2"
+              aria-label="Days to track this habit"
+            >
+              {weekdayLabels.map((label, day) => (
+                <button
+                  key={day}
+                  type="button"
+                  aria-label={new Date(2023, 0, 1 + day).toLocaleDateString(
+                    "en",
+                    { weekday: "long" },
+                  )}
+                  aria-pressed={weekdays.includes(day)}
+                  onClick={() => {
+                    setWeekdays(
+                      weekdays.includes(day)
+                        ? weekdays.filter((value) => value !== day)
+                        : [...weekdays, day].sort(),
+                    );
+                  }}
+                  className={`flex size-10 items-center justify-center rounded-full border text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${weekdays.includes(day) ? "border-white bg-white text-black" : "border-white/80 bg-transparent text-white hover:bg-white/10"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Leave all unselected to track every day.
+            </p>
+          </fieldset>
           <fieldset disabled={saving}>
             <legend className="mb-3 text-sm font-medium">Graph color</legend>
             <div className="flex gap-3">

@@ -17,24 +17,44 @@ export function isDateKey(value: string): boolean {
     dateKey(parseDate(value)) === value
   );
 }
-export function currentStreak(completions: string[], today: string): number {
+function scheduled(date: Date, weekdays: number[]): boolean {
+  return weekdays.length === 0 || weekdays.includes(date.getDay());
+}
+
+function previousScheduled(date: Date, weekdays: number[]): Date {
+  let cursor = moveDate(date, -1);
+  while (!scheduled(cursor, weekdays)) cursor = moveDate(cursor, -1);
+  return cursor;
+}
+
+export function currentStreak(
+  completions: string[],
+  today: string,
+  weekdays: number[] = [0, 1, 2, 3, 4, 5, 6],
+): number {
   const done = new Set(completions);
-  let cursor = parseDate(today),
-    count = 0;
-  if (!done.has(dateKey(cursor))) cursor = moveDate(cursor, -1);
+  let cursor = parseDate(today);
+  if (!scheduled(cursor, weekdays) || !done.has(dateKey(cursor)))
+    cursor = previousScheduled(cursor, weekdays);
+  let count = 0;
   while (done.has(dateKey(cursor))) {
     count++;
-    cursor = moveDate(cursor, -1);
+    cursor = previousScheduled(cursor, weekdays);
   }
   return count;
 }
-export function longestStreak(completions: string[]): number {
+export function longestStreak(
+  completions: string[],
+  weekdays: number[] = [0, 1, 2, 3, 4, 5, 6],
+): number {
   let best = 0,
     current = 0,
     previous = "";
-  for (const day of [...new Set(completions)].sort()) {
+  for (const day of [...new Set(completions)]
+    .sort()
+    .filter((day) => scheduled(parseDate(day), weekdays))) {
     current =
-      previous && dateKey(moveDate(parseDate(previous), 1)) === day
+      previous && dateKey(previousScheduled(parseDate(day), weekdays)) === previous
         ? current + 1
         : 1;
     best = Math.max(best, current);
